@@ -1,14 +1,43 @@
-#!/bin/bash
-# Serve fishaudio/drama-3 (or a finetune) via SGLang-Omni.
-# Usage: serve.sh [model_dir]   (default: the base checkpoint)
-# CUDA_HOME must be >= 12.9 for DeepGEMM's JIT compiler (box default is 12.8).
-cd /mnt/data/work/fishdrama/sglang-omni
-export CUDA_VISIBLE_DEVICES=0,2
-export CUDA_HOME=/usr/local/cuda-13.0
-export PATH=$CUDA_HOME/bin:$PATH
-MODEL_DIR="${1:-/mnt/data/work/fishdrama/models/drama-3}"
-exec .venv/bin/sgl-omni serve \
-  --model-path "$MODEL_DIR" \
-  --port 8000 \
-  --tts_engine.gpu 0 \
-  --vocoder.gpu 1
+#!/usr/bin/env bash
+# Serve a drama-3 checkpoint (HF repo id or local path) via SGLang-Omni.
+#
+# Usage: ./serve.sh [model] [port]
+#   model: HF repo id (auto-downloaded on first start) or a local checkpoint dir
+#          default: Revolab/drama-3-malay-sft-half
+#   port:  API port, default 8000
+#
+# Env:
+#   SGLANG_OMNI_DIR  sglang-omni install root (default: ~/sglang-omni)
+#   ENGINE_GPU       engine GPU id (default: 0)
+#   VOCODER_GPU      vocoder GPU id (default: 1; set = ENGINE_GPU for one GPU)
+#   CUDA_HOME        CUDA >= 12.9 toolkit (DeepGEMM JIT requirement)
+#
+# Private repos need HF auth first: hf login (token with read access to the repo).
+set -euo pipefail
+
+MODEL="${1:-Revolab/drama-3-malay-sft-half}"
+PORT="${2:-8000}"
+: "${SGLANG_OMNI_DIR:=$HOME/sglang-omni}"
+ENGINE_GPU="${ENGINE_GPU:-0}"
+VOCODER_GPU="${VOCODER_GPU:-1}"
+
+export CUDA_HOME="${CUDA_HOME:-/usr/local/cuda}"
+export PATH="$CUDA_HOME/bin:$PATH"
+
+SGL_OMNI_BIN="$SGLANG_OMNI_DIR/.venv/bin/sgl-omni"
+if [ ! -x "$SGL_OMNI_BIN" ]; then
+  echo "ERROR: sgl-omni not found at $SGL_OMNI_BIN"
+  echo ""
+  echo "Install sglang-omni first:"
+  echo "  git clone https://github.com/sgl-project/sglang-omni $SGLANG_OMNI_DIR"
+  echo "  cd $SGLANG_OMNI_DIR"
+  echo "  uv venv --python 3.12 .venv"
+  echo "  uv pip install --prerelease=allow -e \".[fishaudio]\""
+  exit 1
+fi
+
+exec "$SGL_OMNI_BIN" serve \
+  --model-path "$MODEL" \
+  --port "$PORT" \
+  --tts_engine.gpu "$ENGINE_GPU" \
+  --vocoder.gpu "$VOCODER_GPU"

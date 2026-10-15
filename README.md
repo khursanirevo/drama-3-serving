@@ -5,11 +5,13 @@ Serving kit for [Revolab/drama-3-malay-sft-half](https://huggingface.co/Revolab/
 ## Serve
 
 ```bash
-export CUDA_HOME=/usr/local/cuda-13.0   # DeepGEMM JIT needs nvcc >= 12.9
-./serve.sh                # pulls the model from HF on first start (needs hf login with org access)
-# or an explicit path:
-./serve.sh /path/to/local/checkpoint
+hf login                      # org token, private repo
+ENGINE_GPU=0 VOCODER_GPU=1 ./serve.sh                       # pulls 39 GB from HF on first start
+./serve.sh /path/to/checkpoint                              # or a local checkpoint dir
+./serve.sh Revolab/drama-3-malay-sft-half 8001              # explicit repo id and port
 ```
+
+Defaults live in the script header: `SGLANG_OMNI_DIR`, `ENGINE_GPU`, `VOCODER_GPU`, `CUDA_HOME`. The engine wants a CUDA >= 12.9 toolkit at CUDA_HOME (DeepGEMM JIT).
 
 Engine on GPU 0, vocoder on GPU 1. Single GPU: drop the two --*.gpu flags in serve.sh.
 
