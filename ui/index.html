@@ -1,0 +1,287 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Revolab Voice Studio</title>
+<style>
+  :root {
+    --bg: #111318; --panel: #191c23; --panel2: #1f232c; --line: #2a2f3a;
+    --text: #e8eaf0; --dim: #9aa3b2; --accent: #8ab4f8; --accent2: #f8b48a;
+    --ok: #7dd4a8; --warn: #f8b48a; --bad: #f88a8a;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); color: var(--text); font: 14px/1.5 system-ui, sans-serif; }
+  header { display: flex; align-items: center; gap: 12px; padding: 14px 22px; border-bottom: 1px solid var(--line); }
+  header h1 { font-size: 17px; font-weight: 600; }
+  header .dot { width: 9px; height: 9px; border-radius: 50%; background: var(--bad); }
+  header .dot.up { background: var(--ok); }
+  header input { background: var(--panel); border: 1px solid var(--line); color: var(--dim); padding: 5px 10px; border-radius: 6px; width: 220px; font-size: 12px; }
+  .wrap { display: grid; grid-template-columns: 1fr 380px; gap: 16px; padding: 16px 22px; max-width: 1400px; margin: 0 auto; }
+  .panel { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 14px; }
+  .panel h2 { font-size: 12px; text-transform: uppercase; letter-spacing: .08em; color: var(--dim); margin-bottom: 10px; }
+  textarea#script { width: 100%; min-height: 190px; background: var(--panel2); color: var(--text); border: 1px solid var(--line); border-radius: 8px; padding: 12px; font: 14px ui-monospace, monospace; resize: vertical; }
+  .tags { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+  .tags button { background: var(--panel2); color: var(--accent); border: 1px solid var(--line); border-radius: 6px; padding: 4px 9px; font-size: 12px; cursor: pointer; }
+  .tags button:hover { border-color: var(--accent); }
+  .tags button.scope { color: var(--accent2); }
+  .hint { font-size: 12px; color: var(--dim); margin-top: 8px; min-height: 18px; }
+  .hint.bad { color: var(--bad); }
+  .row { display: flex; gap: 8px; align-items: center; margin-top: 10px; }
+  select, input[type=text] { background: var(--panel2); color: var(--text); border: 1px solid var(--line); border-radius: 6px; padding: 6px 9px; font-size: 13px; }
+  #lang { width: 170px; }
+  button.primary { background: var(--accent); color: #0d1117; border: 0; border-radius: 8px; padding: 10px 22px; font-size: 14px; font-weight: 600; cursor: pointer; }
+  button.primary:disabled { opacity: .45; cursor: default; }
+  .refs { display: flex; flex-direction: column; gap: 10px; }
+  .ref { background: var(--panel2); border: 1px solid var(--line); border-radius: 8px; padding: 10px; }
+  .ref .rrow { display: flex; gap: 8px; align-items: center; }
+  .ref input[type=text] { flex: 1; }
+  .ref textarea { width: 100%; min-height: 44px; margin-top: 8px; background: var(--bg); color: var(--text); border: 1px solid var(--line); border-radius: 6px; padding: 8px; font-size: 12px; resize: vertical; }
+  .ref audio { width: 100%; margin-top: 8px; height: 30px; }
+  .ref .fname { color: var(--dim); font-size: 12px; }
+  button.ghost { background: none; color: var(--dim); border: 1px solid var(--line); border-radius: 6px; padding: 5px 10px; font-size: 12px; cursor: pointer; }
+  button.ghost:hover { color: var(--text); border-color: var(--dim); }
+  .takes { display: flex; flex-direction: column; gap: 8px; }
+  .take { background: var(--panel2); border: 1px solid var(--line); border-radius: 8px; padding: 9px 10px; }
+  .take .trow { display: flex; align-items: center; gap: 8px; }
+  .take .tname { flex: 1; font-size: 13px; }
+  .take audio { width: 100%; height: 30px; margin-top: 6px; }
+  .take.best { border-color: var(--ok); }
+  .status { font-size: 12px; color: var(--dim); margin-top: 8px; min-height: 16px; }
+</style>
+</head>
+<body>
+<header>
+  <span class="dot" id="health-dot"></span>
+  <h1>Revolab Voice Studio</h1>
+  <input id="server" value="http://localhost:8000" spellcheck="false">
+  <span style="flex:1"></span>
+  <span class="hint" id="health-label">checking…</span>
+</header>
+<div class="wrap">
+  <div>
+    <div class="panel">
+      <h2>Script</h2>
+      <textarea id="script" placeholder="Type the line to speak. Open with plain words, then add tags mid-line for the most reliable takes.">Assalamualaikum semua. Hari ini kita ada berita besar dari Wakaf Bharu.</textarea>
+      <div class="tags" id="point-tags"></div>
+      <div class="tags" id="scope-tags"></div>
+      <div class="hint" id="guard"></div>
+      <div class="row">
+        <select id="lang">
+          <option value="">no language hint</option>
+          <option value="ms">[language: ms]</option>
+          <option value="ms-kel">[language: ms-kel] (Kelantanese)</option>
+        </select>
+        <span style="flex:1"></span>
+        <span class="hint" id="chars"></span>
+        <button class="primary" id="gen">Generate</button>
+      </div>
+      <div class="status" id="status"></div>
+    </div>
+    <div class="panel" style="margin-top:16px">
+      <h2>Reference voices</h2>
+      <div class="refs" id="refs"></div>
+      <div class="row">
+        <button class="ghost" id="add-ref">+ add reference</button>
+        <span class="hint">upload a clip plus its transcript — the transcript is required for good cloning</span>
+      </div>
+    </div>
+  </div>
+  <div>
+    <div class="panel">
+      <h2>Takes this session</h2>
+      <div class="takes" id="takes"><div class="hint">generations land here — click star to mark the best take</div></div>
+    </div>
+  </div>
+</div>
+<script>
+window.onerror = (msg) => {
+  const s = document.getElementById("status");
+  if (s) s.textContent = "script error: " + msg;
+};
+const $ = id => document.getElementById(id);
+const state = { takes: [], best: -1, refs: [] };
+const POINT_TAGS = ["[sighs]", "[laughs]", "[pause]", "[gasps]", "[hesitates]", "[coughs]", "[clears throat]"];
+const SCOPE_TAGS = [["<whisper>", "</whisper>"], ["<emphasis>", "</emphasis>"], ["<slow>", "</slow>"]];
+
+function addPreset(name, serverPath, transcript) {
+  const div = document.createElement("div");
+  div.className = "ref";
+  div.innerHTML = `
+    <div class="rrow">
+      <input type="text" class="rname" value="${name}" readonly>
+      <span class="fname">server file</span>
+    </div>
+    <textarea class="rtext">${transcript}</textarea>`;
+  state.refs.push({ el: div, presetPath: serverPath });
+  $("refs").appendChild(div);
+}
+function addRef(name, audioB64, mediaType) {
+  const div = document.createElement("div");
+  div.className = "ref";
+  div.innerHTML = `
+    <div class="rrow">
+      <input type="text" class="rname" placeholder="voice name" value="${name || "voice " + (state.refs.length + 1)}">
+      <button class="ghost rdel">remove</button>
+    </div>
+    <div class="rrow" style="margin-top:8px">
+      <input type="file" accept="audio/wav,audio/mpeg,audio/x-wav" style="font-size:12px">
+      <span class="fname"></span>
+    </div>
+    <textarea class="rtext" placeholder="transcript of this clip (required for good cloning)"></textarea>
+    ${audioB64 ? `<audio controls src="data:${mediaType || "audio/wav"};base64,${audioB64}"></audio>` : ""}`;
+  const entry = { el: div, data: audioB64 || null, mediaType: mediaType || "audio/wav" };
+  div.querySelector(".rdel").onclick = () => { state.refs = state.refs.filter(r => r !== entry); div.remove(); };
+  div.querySelector("input[type=file]").onchange = ev => {
+    const file = ev.target.files[0];
+    if (!file) return;
+    div.querySelector(".fname").textContent = file.name;
+    const reader = new FileReader();
+    reader.onload = () => {
+      const b64 = reader.result.split(",")[1];
+      entry.data = b64;
+      entry.mediaType = file.type || "audio/wav";
+      const old = div.querySelector("audio");
+      if (old) old.remove();
+      div.insertAdjacentHTML("beforeend", `<audio controls src="data:${entry.mediaType};base64,${b64}"></audio>`);
+    };
+    reader.readAsDataURL(file);
+  };
+  state.refs.push(entry);
+  $("refs").appendChild(div);
+}
+$("add-ref").onclick = () => addRef();
+
+for (const tag of POINT_TAGS) {
+  const b = document.createElement("button");
+  b.textContent = tag;
+  b.onclick = () => insertAtCursor(tag + " ");
+  $("point-tags").appendChild(b);
+}
+for (const [open, close] of SCOPE_TAGS) {
+  const b = document.createElement("button");
+  b.textContent = open;
+  b.className = "scope";
+  b.onclick = () => {
+    const el = $("script");
+    const sel = el.value.substring(el.selectionStart, el.selectionEnd);
+    if (sel) {
+      el.setRangeText(open + sel + close, el.selectionStart, el.selectionEnd, "end");
+    } else {
+      insertAtCursor(open + close);
+      el.selectionStart = el.selectionEnd - close.length;
+    }
+    el.focus();
+  };
+  $("scope-tags").appendChild(b);
+}
+function insertAtCursor(text) {
+  const el = $("script");
+  el.setRangeText(text, el.selectionStart, el.selectionEnd, "end");
+  el.focus();
+  validate();
+}
+$("script").addEventListener("input", validate);
+function validate() {
+  const text = $("script").value;
+  $("chars").textContent = text.length + " chars";
+  const leading = text.trimStart().match(/^\[(.*?)\]/);
+  if (leading) {
+    $("guard").className = "hint bad";
+    $("guard").textContent = `warning: a leading [${leading[1]}] tag causes silent takes — open with plain words and move the tag after the first clause`;
+    return false;
+  }
+  const tags = (text.match(/\[/g) || []).length;
+  if (tags > 3) {
+    $("guard").className = "hint bad";
+    $("guard").textContent = "warning: high tag density produces silent tails — keep it to three or fewer per line";
+    return false;
+  }
+  $("guard").className = "hint";
+  $("guard").textContent = "looks reliable";
+  return true;
+}
+async function health() {
+  try {
+    const r = await fetch($("server").value.replace(/\/$/, "") + "/health", { signal: AbortSignal.timeout(4000) });
+    $("health-dot").className = "dot" + (r.ok ? " up" : "");
+    $("health-label").textContent = r.ok ? "server up" : "server error";
+  } catch {
+    $("health-dot").className = "dot";
+    $("health-label").textContent = "server unreachable";
+  }
+}
+setInterval(health, 8000);
+health();
+$("gen").onclick = async () => {
+  const btn = $("gen");
+  if (!validate()) return;
+  const refs = [];
+  for (const r of state.refs) {
+    const transcript = r.el.querySelector(".rtext").value.trim();
+    if (!transcript) { $("status").textContent = "every reference needs its transcript"; return; }
+    if (r.presetPath) {
+      refs.push({ audio_path: r.presetPath, text: transcript });
+    } else if (r.data) {
+      refs.push({ data: r.data, media_type: r.mediaType, text: transcript });
+    } else {
+      $("status").textContent = "a reference has no audio file yet — upload one or remove it";
+      return;
+    }
+  }
+  let input = $("script").value.trim();
+  const lang = $("lang").value;
+  if (lang) input += ` [language: ${lang}]`;
+  btn.disabled = true;
+  $("status").textContent = "generating…";
+  const t0 = performance.now();
+  try {
+    const r = await fetch($("server").value.replace(/\/$/, "") + "/v1/audio/speech", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ input, references: refs }),
+      signal: AbortSignal.timeout(300000),
+    });
+    if (!r.ok) {
+      const err = await r.text();
+      $("status").textContent = "HTTP " + r.status + ": " + err.slice(0, 200);
+      return;
+    }
+    const blob = await r.blob();
+    const seconds = Math.round(blob.size / (44100 * 2) * 10) / 10;
+    const url = URL.createObjectURL(blob);
+    const take = { n: state.takes.length + 1, url, blob, seconds, at: new Date().toLocaleTimeString() };
+    state.takes.push(take);
+    renderTakes();
+    $("status").textContent = `take ${take.n}: ${seconds}s audio in ${Math.round((performance.now() - t0) / 100) / 10}s`;
+  } catch (e) {
+    $("status").textContent = "request failed: " + e.message;
+  } finally {
+    btn.disabled = false;
+  }
+};
+function renderTakes() {
+  const box = $("takes");
+  box.innerHTML = "";
+  for (const take of [...state.takes].reverse()) {
+    const div = document.createElement("div");
+    div.className = "take" + (state.takes.indexOf(take) === state.best ? " best" : "");
+    div.innerHTML = `
+      <div class="trow">
+        <button class="ghost star" title="mark best">${state.takes.indexOf(take) === state.best ? "★ best" : "☆"}</button>
+        <span class="tname">take ${take.n} · ${take.seconds}s · ${take.at}</span>
+        <a class="ghost" href="${take.url}" download="take-${take.n}.wav">download</a>
+      </div>
+      <audio controls src="${take.url}"></audio>`;
+    div.querySelector(".star").onclick = () => { state.best = state.takes.indexOf(take); renderTakes(); };
+    div.querySelectorAll("audio").forEach(a => a.addEventListener("play", () => {
+      document.querySelectorAll("audio").forEach(o => { if (o !== a) o.pause(); });
+    }));
+    box.appendChild(div);
+  }
+}
+addPreset("Anwar", "/mnt/data/work/fishdrama/anwar.wav", "terima kasih atas kesempatan ini, dan seperti mana yang kita ikuti");
+addPreset("Aziz", "/home/sani/work/fishdrama/Aziz-enhanced-v2.wav", "aktiviti ops kesan pada tahun ini, kita akan tumpukan kepada majikan majikan yang mengaji pekerja asing yang mendaftar pekerja asing untuk kita pastikan perkeja ini didaftar dan di carum");
+</script>
+</body>
+</html>
