@@ -36,7 +36,12 @@ if [ ! -x "$SGL_OMNI_BIN" ]; then
   exit 1
 fi
 
+TMPDIR="${TMPDIR:-/tmp/$USER-sglang}"
+export TMPDIR
+CONFIG_ARGS=""
+if [ -n "${CONFIG_FILE:-}" ]; then CONFIG_ARGS=(--config "$CONFIG_FILE"); fi
 exec "$SGL_OMNI_BIN" serve \
+  "${CONFIG_ARGS[@]}" \
   --model-path "$MODEL" \
   --port "$PORT" \
   --tts_engine.gpu "$ENGINE_GPU" \
